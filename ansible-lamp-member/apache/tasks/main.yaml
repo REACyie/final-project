@@ -1,0 +1,54 @@
+- name: Install Apache HTTP Server and PHP packages
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+  loop: 
+    - httpd
+    - php
+    - php-mysqlnd
+    - php-gd
+    - php-devel
+    - php-mbstring
+
+- name: Create web root directory
+  ansible.builtin.file: 
+    path: "{{ WEBROOT }}"
+    state: directory 
+    owner: apache 
+    mode: 755
+  ignore_errors: True
+
+- name: Copy application files
+  ansible.builtin.unarchive:
+    src: member.tar
+    dest:  "{{ WEBROOT }}"
+
+- name: Change database configuration
+  ansible.builtin.replace:
+    path: "{{ WEBROOT }}/config/config.inc.php"
+    regexp: "{{ item.src }}"
+    replace: "{{ item.dest }}"
+  loop:
+    - { src: "dbHost", dest: "{{groups.mysql[0]}}" }
+    - { src: "dbName", dest: "{{MYSQL_DB}}" }
+    - { src: "dbUser", dest: "{{MYSQL_USER}}" }
+    - { src: "dbPass", dest: "{{MYSQL_PASSWORD}}" }
+
+
+- name: Install virtual host configuration file
+  ansible.builtin.template: 
+    src: vhost.conf.j2 
+    dest: /etc/httpd/conf.d/virtualhost.conf
+  notify:
+    - restart httpd
+
+- name: Stop firewalld service
+  ansible.builtin.systemd:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
+
