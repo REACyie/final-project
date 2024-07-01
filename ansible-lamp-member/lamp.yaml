@@ -1,9 +1,0 @@
-- hosts: webserver
-  roles:
-    - role: apache
-  tags: apache
-
-- hosts: mysql
-  roles: 
-    - role: mysql
-  tags: mysql
