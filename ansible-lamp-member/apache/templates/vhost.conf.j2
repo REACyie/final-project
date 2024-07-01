@@ -1,0 +1,15 @@
+{% if SERVER_PORT != 80 %}
+Listen {{ SERVER_PORT }}
+{% endif %}
+<VirtualHost *:{{ SERVER_PORT }}>
+    DocumentRoot "{{ WEBROOT }}"
+    ServerName {{ SERVER_NAME }}
+    ErrorLog "/var/log/httpd/{{ SERVER_NAME }}-error_log"
+    CustomLog "/var/log/httpd/{{ SERVER_NAME }}-access_log" common
+
+    <Directory "{{ WEBROOT }}">
+        Options none
+        AllowOverride none
+    	Require all granted
+    </Directory>
+</VirtualHost>

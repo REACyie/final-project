@@ -1,0 +1,8 @@
+MYSQL_ROOT_PASSWORD: Admin@123
+MYSQL_DB: member
+MYSQL_USER: member
+MYSQL_PASSWORD: Member@123
+MYSQL_GRANT_HOST: 192.168.29.% 
+SERVER_NAME: www.member.com
+WEBROOT: /var/www/member/
+SERVER_PORT: 80

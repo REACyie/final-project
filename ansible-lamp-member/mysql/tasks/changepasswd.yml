@@ -1,0 +1,11 @@
+- name: start mysql service
+  systemd:
+    name: mysqld
+    enabled: yes
+    state: started
+
+- name: change root passwd
+  shell: |
+    p=`grep 'password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' 'END {print $11}'`
+    mysqladmin -uroot -p"$p" password "{{MYSQL_ROOT_PASSWORD}}"
+

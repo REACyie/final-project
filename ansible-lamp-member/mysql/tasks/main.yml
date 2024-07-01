@@ -1,0 +1,85 @@
+- name: Copy mysql rpm package
+  ansible.builtin.unarchive:
+    src: mysql-5.7.40-1.el7.x86_64.rpm-bundle.tar
+    dest:  /tmp/
+
+- name: install MySQL
+  ansible.builtin.yum:
+    name:
+      - /tmp/mysql-community-client-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-common-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-devel-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-embedded-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-embedded-compat-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-embedded-devel-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-libs-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-libs-compat-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-server-5.7.40-1.el7.x86_64.rpm
+      - /tmp/mysql-community-test-5.7.40-1.el7.x86_64.rpm
+      - MySQL-python
+    state: installed
+  register: result
+
+- name: Include task list in play only if the condition is true
+  ansible.builtin.include_tasks: "changepasswd.yml"
+  when: result is change
+
+- name: upload mysql config file
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+    backup: yes
+  register: uploadconfigfile
+
+- name: reload mysql service
+  ansible.builtin.systemd:
+    name: mysqld
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  when: uploadconfigfile is change
+
+- name: upload data file
+  ansible.builtin.copy:
+    src: data.sql
+    dest: /tmp/data.sql
+  register: uploaddatafile
+
+- name: Import the MySQL database
+  # ansible-galaxy collection install community.mysql  如果没有，需要手动安装集合
+  community.mysql.mysql_db:
+    login_host: "localhost"
+    login_port: "3306"
+    login_user: "root"
+    login_password: "{{ MYSQL_ROOT_PASSWORD }}"
+    login_unix_socket: "/var/lib/mysql/mysql.sock"
+    name: "{{MYSQL_DB}}"
+    target: "/tmp/data.sql"
+    state: "import"
+  ignore_errors: yes
+  when: uploaddatafile is change
+
+- name: Create MySQL user with privileges
+  no_log: true
+  community.mysql.mysql_user:
+    login_host: "localhost"
+    login_port: "3306"
+    login_user: "root"
+    login_password: "{{ MYSQL_ROOT_PASSWORD }}"
+    login_unix_socket: "/var/lib/mysql/mysql.sock"
+    name: "{{ MYSQL_USER }}"
+    password: "{{ MYSQL_PASSWORD }}"
+    host: "{{ MYSQL_GRANT_HOST }}"
+    priv: "{{ MYSQL_DB }}.*:ALL"
+    state: present
+  
+- name: stop firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
+
